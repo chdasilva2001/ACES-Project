@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACES</title>
+    <link rel="stylesheet" href="popup.css">
+    <script src="popup.js" defer></script>
+</head>
+<body>
+    <main>
+        <h1>
+            ACES
+        </h1>
+        <p class="description">
+            Personalize a leitura da página atual.
+        </p>
+
+        <fieldset>
+            <legend>
+                Ajustes visuais
+            </legend>
+            <label class="option" for="contrast">
+                <input type="checkbox" id="contrast">
+                Ativar modo contraste
+            </label>
+        </fieldset>
+        <div class="actions">
+            <button id="apply" type="button" disabled>
+                Aplicar na página
+            </button>
+
+            <button id="restore" type="button" disabled>
+                Restaurar página
+            </button>
+        </div>
+
+        <p id="status" role="status" aria-live="polite"></p>
+    </main>
+</body>
+</html>
