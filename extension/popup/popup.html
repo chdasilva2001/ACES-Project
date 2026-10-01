@@ -1,41 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACES</title>
-    <link rel="stylesheet" href="popup.css">
-    <script src="popup.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACES</title>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <main>
-        <h1>
-            ACES
-        </h1>
-        <p class="description">
-            Personalize a leitura da página atual.
-        </p>
+  <main>
+    <header>
+      <h1>ACES</h1>
+      <p>Recursos rápidos de acessibilidade.</p>
+    </header>
 
-        <fieldset>
-            <legend>
-                Ajustes visuais
-            </legend>
-            <label class="option" for="contrast">
-                <input type="checkbox" id="contrast">
-                Ativar modo contraste
-            </label>
-        </fieldset>
-        <div class="actions">
-            <button id="apply" type="button" disabled>
-                Aplicar na página
-            </button>
+    <section class="card">
+      <button id="toggleToolbar" class="primary">Ocultar barra</button>
+      <p id="toolbarState">A barra está ativa nesta página.</p>
+    </section>
 
-            <button id="restore" type="button" disabled>
-                Restaurar página
-            </button>
-        </div>
+    <section class="card">
+      <h2>Texto</h2>
+      <div class="row">
+        <button data-font="-0.1">A−</button>
+        <button data-font="+0.1">A+</button>
+      </div>
+      <input id="fontScale" type="range" min="0.8" max="1.8" step="0.1" value="1">
+      <span id="fontValue">100%</span>
+    </section>
 
-        <p id="status" role="status" aria-live="polite"></p>
-    </main>
+    <section class="card">
+      <h2>Visual</h2>
+      <button id="contrast" class="accessibility-button" data-active="false" aria-pressed="false"> Alto contraste </button> 
+      <button id="grayscale" class="accessibility-button" data-active="false" aria-pressed="false"> Escala de cinza </button> 
+      <button id="invert" class="accessibility-button" data-active="false" aria-pressed="false"> Inverter cores </button> 
+      <button id="highlightLinks" class="accessibility-button" data-active="false" aria-pressed="false"> Destacar links </button> <button id="reduceMotion" class="accessibility-button" data-active="false" aria-pressed="false"> Reduzir animações </button>
+      <button id="reset" class="secondary">Restaurar</button>
+    </section>
+
+    <section class="card">
+      <h2>Voz</h2>
+      <p>Na página, clique em <strong>🎙 Voz</strong>. O estado da voz fica salvo para as próximas páginas.</p>
+      <p class="examples">Ex.: “ler página”, “próximo botão”, “pesquisar por matemática”.</p>
+    </section>
+
+    <p id="status" role="status" aria-live="polite">Abra um site HTTP/HTTPS para usar o ACES.</p>
+  </main>
+  <script src="popup.js"></script>
 </body>
 </html>
