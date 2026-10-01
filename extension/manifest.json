@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ACES - Acessibilidade Web",
-  "version": "0.6.0",
+  "version": "0.1.0",
   "description": "Assistente de acessibilidade Web com barra flutuante, preferências persistentes, leitura sequencial, voz e navegação.",
   "permissions": [
     "storage",

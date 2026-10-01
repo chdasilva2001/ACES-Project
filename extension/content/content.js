@@ -569,7 +569,7 @@
       <button id="aces-font-down" type="button" class="aces-optional" title="Diminuir texto" aria-label="Diminuir texto">A−</button>
       <button id="aces-font-up" type="button" class="aces-optional" title="Aumentar texto" aria-label="Aumentar texto">A+</button>
       <button id="aces-help" type="button" class="aces-optional" title="Ouvir exemplos de comandos" aria-label="Ouvir exemplos de comandos">?</button>
-      <button id="aces-collapse" type="button" title="Recolher barra" aria-label="Recolher barra">−</button>
+      <button id="aces-collapse" type="button" title="Recolher barra" aria-label="Recolher barra">-</button>
       <span id="aces-status" role="status" aria-live="polite">ACES pronto.</span>
     `;
 
@@ -602,7 +602,7 @@
       const collapsed = !bar.classList.contains("aces-collapsed");
       bar.classList.toggle("aces-collapsed", collapsed);
       toolbarState.collapsed = collapsed;
-      document.getElementById("aces-collapse").textContent = collapsed ? "+" : "−";
+      document.getElementById("aces-collapse").textContent = collapsed ? "+" : "-";
       document.getElementById("aces-collapse").title = collapsed ? "Expandir barra" : "Recolher barra";
       saveToolbarState();
     });
@@ -660,7 +660,7 @@
 
         const collapse = document.getElementById("aces-collapse");
         if (collapse) {
-          collapse.textContent = toolbarState.collapsed ? "+" : "−";
+          collapse.textContent = toolbarState.collapsed ? "+" : "-";
           collapse.title = toolbarState.collapsed ? "Expandir barra" : "Recolher barra";
         }
       }
