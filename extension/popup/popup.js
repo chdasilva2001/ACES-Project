@@ -1,3 +1,8 @@
+const contrastInput = document.getElementById("contrast");
+const applyButton = document.getElementById("apply");
+const restoreButton = document.getElementById("restore");
+const statusElement = document.getElementById("status");
+
 const STORAGE_KEY = "acesPreferences";
 
 function setStatus(message) {
@@ -10,208 +15,100 @@ async function getActiveTab() {
     currentWindow: true
   });
 
-  if (!tab?.id || !/^https?:\/\//i.test(tab.url || "")) {
+  if (!tab?.id || !/^https?:\/\//i.test(tab.url ?? "")) {
     throw new Error(
-      "Abra um site comum, como https://www.google.com."
+      "Abra uma página comum de um site para utilizar o ACES."
     );
   }
+
   return tab;
 }
 
-async function sendToPage(message) {
+async function sendPreferencesToPage(preferences) {
   const tab = await getActiveTab();
 
-  try {
-    return await chrome.tabs.sendMessage(tab.id, message);
-  } catch {
-    throw new Error(
-      "Recarregue a página depois de carregar a extensão."
-    );
-  }
-}
+  // Carrega o código que recebe os comandos na página.
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ["content/content.js"]
+  });
 
-function readPreferences() {
-  return {
-    fontScale: Number(
-      document.getElementById("fontScale").value
-    ),
-    contrast:
-      document.getElementById("contrast").dataset.active === "true",
-    grayscale:
-      document.getElementById("grayscale").dataset.active === "true",
-    invert:
-      document.getElementById("invert").dataset.active === "true",
-    highlightLinks:
-      document.getElementById("highlightLinks").dataset.active === "true",
-    reduceMotion:
-      document.getElementById("reduceMotion").dataset.active === "true"
-  };
-}
-function updateFontLabel(value) {
-  document.getElementById("fontValue").textContent =
-    `${Math.round(Number(value) * 100)}%`;
-}
-function setButtonState(id, active) {
-  const button = document.getElementById(id);
-
-  if (!button) return;
-
-  button.dataset.active = String(active);
-
-  button.classList.toggle("active", active);
-
-  button.setAttribute(
-    "aria-pressed",
-    String(active)
-  );
-}
-async function applyVisual() {
-  const preferences = readPreferences();
-
-  const response = await sendToPage({
-    type: "ACES_VISUAL_APPLY",
+  // Envia as configurações para esse código.
+  const response = await chrome.tabs.sendMessage(tab.id, {
+    type: "ACES_APPLY_PREFERENCES",
     preferences
   });
 
   if (!response?.ok) {
     throw new Error(
-      response?.error ||
-      "Não foi possível aplicar os ajustes."
+      response?.error ?? "A página não confirmou a aplicação dos ajustes."
     );
   }
-  await chrome.storage.local.set({
-    [STORAGE_KEY]: preferences
-  });
-
-  updateFontLabel(preferences.fontScale);
-
-  setStatus("Ajustes aplicados.");
 }
 
-async function resetVisual() {
-  const response = await sendToPage({
-    type: "ACES_VISUAL_RESET"
-  });
+async function applyPreferences(preferences) {
+  setBusy(true);
+  showStatus("Aplicando ajustes...");
 
-  if (!response?.ok) {
-    throw new Error(
-      response?.error ||
-      "Não foi possível restaurar."
+  try {
+    await sendPreferencesToPage(preferences);
+
+    // Só salva depois que a página confirmar a aplicação.
+    await chrome.storage.local.set({
+      [STORAGE_KEY]: preferences
+    });
+
+    contrastInput.checked = preferences.contrast;
+
+    showStatus(
+      preferences.contrast
+        ? "Modo de contraste aplicado. Preferência salva."
+        : "Ajustes removidos. Preferência salva."
     );
-  }
-  document.getElementById("fontScale").value = "1";
-  [
-    "contrast",
-    "grayscale",
-    "invert",
-    "highlightLinks",
-    "reduceMotion"
-  ].forEach((id) => {
-    setButtonState(id, false);
-  });
-  const preferences = readPreferences();
+  } catch (error) {
+    console.error("Erro no ACES:", error);
 
-  await chrome.storage.local.set({
-    [STORAGE_KEY]: preferences
-  });
-
-  updateFontLabel(1);
-
-  setStatus("Ajustes restaurados.");
-}
-
-async function toggleToolbar() {
-  const button = document.getElementById("toggleToolbar");
-
-  const hiding = button.dataset.hidden !== "true";
-
-  const response = await sendToPage({
-    type: "ACES_TOGGLE_TOOLBAR",
-    visible: !hiding
-  });
-
-  if (!response?.ok) {
-    throw new Error(
-      response?.error ||
-      "Não foi possível alterar a barra."
+    showStatus(
+      `Não foi possível concluir a operação: ${error.message}`
     );
+  } finally {
+    setBusy(false);
   }
-
-  button.dataset.hidden = hiding
-    ? "true"
-    : "false";
-
-  button.textContent = hiding
-    ? "Mostrar barra"
-    : "Ocultar barra";
-
-  document.getElementById("toolbarState").textContent =
-    hiding
-      ? "A barra está oculta nesta página."
-      : "A barra está ativa nesta página.";
 }
 
-async function load() {
-  const data = await chrome.storage.local.get(
-    STORAGE_KEY
-  );
-
-  const preferences = data[STORAGE_KEY];
-
-  if (!preferences) {
-    return;
-  }
-
-  document.getElementById("fontScale").value =
-    String(preferences.fontScale ?? 1);
-
-  setButtonState("contrast",Boolean(preferences.contrast));
-  setButtonState("grayscale", Boolean(preferences.grayscale));
-  setButtonState("invert", Boolean(preferences.invert));
-  setButtonState("highlightLinks", Boolean(preferences.highlightLinks));
-  setButtonState("reduceMotion", Boolean(preferences.reduceMotion));
-  updateFontLabel(preferences.fontScale ?? 1);
-}
-
-document.getElementById("toggleToolbar").addEventListener("click", () => { toggleToolbar().catch((e) => setStatus(e.message));});
-
-document.getElementById("fontScale").addEventListener("input", () => { updateFontLabel(document.getElementById("fontScale").value);
-applyVisual().catch((e) => setStatus(e.message));});
-
-document.querySelectorAll("[data-font]").forEach((button) => { button.addEventListener("click", async () => {
-
-      const current = Number( document.getElementById("fontScale").value);
-
-      const next = Math.min( 1.8,Math.max(0.8,current + Number(button.dataset.font)));
-
-      document.getElementById("fontScale").value = String(next);
-
-      updateFontLabel(next);
-
-      applyVisual().catch((e) => setStatus(e.message));});
-
+applyButton.addEventListener("click", () => {
+  applyPreferences({
+    contrast: contrastInput.checked
   });
-
-[
-  "contrast",
-  "grayscale",
-  "invert",
-  "highlightLinks",
-  "reduceMotion"
-].forEach((id) => {
-
-  const button = document.getElementById(id);
-
-  button.addEventListener("click", () => {
-
-    const current =button.dataset.active === "true";
-
-    setButtonState(id, !current);
-
-    applyVisual().catch((e) => setStatus(e.message));});
-
 });
 
-document.getElementById("reset").addEventListener("click", () => {resetVisual().catch((e) => setStatus(e.message));});
+restoreButton.addEventListener("click", () => {
+  applyPreferences({
+    contrast: false
+  });
+});
 
-load().catch((error) => {console.error("ACES:", error);});
+async function initializePopup() {
+  setBusy(true);
+
+  try {
+    const data = await chrome.storage.local.get(STORAGE_KEY);
+    const preferences = data[STORAGE_KEY];
+
+    contrastInput.checked = preferences?.contrast === true;
+
+    showStatus(
+      "Escolha uma configuração e clique em Aplicar na página."
+    );
+  } catch (error) {
+    console.error("Erro ao carregar preferências:", error);
+
+    showStatus(
+      "Não foi possível recuperar a preferência salva."
+    );
+  } finally {
+    setBusy(false);
+  }
+}
+
+initializePopup();
