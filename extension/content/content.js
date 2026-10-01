@@ -571,10 +571,32 @@
       <button id="aces-help" type="button" class="aces-optional" title="Ouvir exemplos de comandos" aria-label="Ouvir exemplos de comandos">?</button>
       <button id="aces-collapse" type="button" title="Recolher barra" aria-label="Recolher barra">-</button>
       <span id="aces-status" role="status" aria-live="polite">ACES pronto.</span>
+      <button id="aces-libras" type="button" class="aces-optional" title="Traduzir trecho selecionado para Libras" aria-label="Traduzir trecho selecionado para Libras">Libras</button>
     `;
 
     document.documentElement.appendChild(bar);
+  const librasButton = document.getElementById("aces-libras");
 
+  librasButton.addEventListener("pointerdown", () => {
+    ACESLibras.captureSelection();
+  });
+
+  librasButton.addEventListener("click", async () => {
+    librasButton.disabled = true;
+    status("Preparando tradução em Libras...");
+
+    try {
+      const result = await ACESLibras.openSelection();
+
+      status(result?.ok
+        ? "Área de Libras aberta em outra aba."
+        : result?.error || "Não foi possível abrir a tradução.");
+    } catch (error) {
+      status(error.message || "Não foi possível abrir a tradução.");
+    } finally {
+      librasButton.disabled = false;
+    }
+  });
     document.getElementById("aces-voice").addEventListener("click", toggleVoice);
     document.getElementById("aces-read").addEventListener("click", () => statusResult(ACESReader.start(), "Leitura iniciada."));
     document.getElementById("aces-pause").addEventListener("click", () => statusResult(ACESReader.pause(), "Leitura pausada."));

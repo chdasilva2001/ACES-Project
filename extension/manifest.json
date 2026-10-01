@@ -32,9 +32,19 @@
         "content/visual.js",
         "content/reader.js",
         "content/navigation.js",
+        "content/libras.js",
         "content/content.js"
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "sandbox": {
+    "pages": [
+      "libras/sandbox.html"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self';",
+    "sandbox": "sandbox allow-scripts; default-src 'self' https://vlibras.gov.br https://cdn.jsdelivr.net; script-src 'self' https://vlibras.gov.br https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://vlibras.gov.br; frame-src https://vlibras.gov.br; img-src 'self' https://vlibras.gov.br data: blob:; object-src 'none';"
+  }
 }
