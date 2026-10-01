@@ -1,90 +1,51 @@
-* {
-  box-sizing: border-box;
-}
-
+* { box-sizing: border-box; }
 body {
-  width: 320px;
   margin: 0;
-  padding: 20px;
-
-  font-family: Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
-
-  color: #172033;
-  background-color: #ffffff;
+  width: 340px;
+  background: #f3f5f8;
+  color: #20242a;
+  font-family: Arial, Helvetica, sans-serif;
 }
-
-h1 {
-  margin: 0 0 8px;
-  font-size: 26px;
-}
-
-.description {
-  margin: 0 0 20px;
-}
-
-fieldset {
-  margin: 0;
-  padding: 14px;
-  border: 1px solid #667085;
-  border-radius: 8px;
-}
-
-legend {
-  padding: 0 6px;
-  font-weight: bold;
-}
-
-.option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.actions {
-  display: grid;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-button {
+main { padding: 14px; }
+header h1 { margin: 0; font-size: 22px; }
+header p { margin: 4px 0 12px; color: #5d6672; font-size: 13px; }
+.card {
+  background: #fff;
+  border: 1px solid #e0e4e8;
+  border-radius: 12px;
   padding: 12px;
-  border: 2px solid #172033;
+  margin-bottom: 10px;
+}
+h2 { margin: 0 0 8px; font-size: 15px; }
+button {
+  border: 1px solid #cbd1d8;
+  background: #fff;
   border-radius: 8px;
-
-  font: inherit;
-  font-weight: bold;
-
-  color: #ffffff;
-  background-color: #172033;
+  padding: 8px 10px;
   cursor: pointer;
 }
-
-#restore {
-  color: #172033;
-  background-color: #ffffff;
+button:hover { background: #f0f3f6; }
+button.primary { width: 100%; background: #174ea6; color: #fff; border-color: #174ea6; }
+button.secondary { margin-top: 8px; }
+.row { display: flex; gap: 8px; }
+.row button { flex: 1; }
+input[type="range"] { width: 100%; margin-top: 8px; }
+label { display: block; margin: 7px 0; font-size: 13px; }
+#fontValue { font-size: 12px; color: #5d6672; }
+#toolbarState, #status, .examples { font-size: 12px; color: #5d6672; }
+#status { margin: 10px 2px 0; }
+.accessibility-button {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-
-:focus-visible {
-  outline: 3px solid #005fcc;
-  outline-offset: 3px;
-}
-
-#status {
-  min-height: 48px;
-  margin-bottom: 0;
-  overflow-wrap: anywhere;
+.accessibility-button.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
 }

@@ -1,120 +1,113 @@
-const contrastInput = document.getElementById("contrast");
-const applyButton = document.getElementById("apply");
-const restoreButton = document.getElementById("restore");
-const statusElement = document.getElementById("status");
+const STORAGE_KEY = "acesPreferences";
 
-const STORAGE_KEY = "acesbPreferences";
-
-function showStatus(message) {
-  statusElement.textContent = message;
-}
-
-function setBusy(busy) {
-  applyButton.disabled = busy;
-  restoreButton.disabled = busy;
-  contrastInput.disabled = busy;
+function setStatus(message) {
+  document.getElementById("status").textContent = message;
 }
 
 async function getActiveTab() {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
-  });
-
-  if (!tab?.id || !/^https?:\/\//i.test(tab.url ?? "")) {
-    throw new Error(
-      "Abra uma página comum de um site para utilizar o ACESB."
-    );
+  const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
+  if (!tab?.id || !/^https?:\/\//i.test(tab.url || "")) {
+    throw new Error("Abra um site comum, como https://www.google.com.");
   }
-
   return tab;
 }
 
-async function sendPreferencesToPage(preferences) {
+async function sendToPage(message) {
   const tab = await getActiveTab();
-
-  // Carrega o código que recebe os comandos na página.
-  await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    files: ["content/content.js"]
-  });
-
-  // Envia as configurações para esse código.
-  const response = await chrome.tabs.sendMessage(tab.id, {
-    type: "ACESB_APPLY_PREFERENCES",
-    preferences
-  });
-
-  if (!response?.ok) {
-    throw new Error(
-      response?.error ?? "A página não confirmou a aplicação dos ajustes."
-    );
-  }
-}
-
-async function applyPreferences(preferences) {
-  setBusy(true);
-  showStatus("Aplicando ajustes...");
-
   try {
-    await sendPreferencesToPage(preferences);
-
-    // Só salva depois que a página confirmar a aplicação.
-    await chrome.storage.local.set({
-      [STORAGE_KEY]: preferences
-    });
-
-    contrastInput.checked = preferences.contrast;
-
-    showStatus(
-      preferences.contrast
-        ? "Modo de contraste aplicado. Preferência salva."
-        : "Ajustes removidos. Preferência salva."
-    );
-  } catch (error) {
-    console.error("Erro no ACESB:", error);
-
-    showStatus(
-      `Não foi possível concluir a operação: ${error.message}`
-    );
-  } finally {
-    setBusy(false);
+    return await chrome.tabs.sendMessage(tab.id, message);
+  } catch {
+    throw new Error("Recarregue a página depois de carregar a extensão.");
   }
 }
 
-applyButton.addEventListener("click", () => {
-  applyPreferences({
-    contrast: contrastInput.checked
+function readPreferences() {
+  return {
+    fontScale:Number(document.getElementById("fontScale").value),
+    contrast:document.getElementById("contrast").checked,
+    grayscale:document.getElementById("grayscale").checked,
+    invert:document.getElementById("invert").checked,
+    highlightLinks:document.getElementById("highlightLinks").checked,
+    reduceMotion:document.getElementById("reduceMotion").checked
+  };
+}
+
+function updateFontLabel(value) {
+  document.getElementById("fontValue").textContent = `${Math.round(Number(value) * 100)}%`;
+}
+
+async function applyVisual() {
+  const preferences = readPreferences();
+  const response = await sendToPage({ type:"ACES_VISUAL_APPLY", preferences });
+  if (!response?.ok) throw new Error(response?.error || "Não foi possível aplicar os ajustes.");
+  await chrome.storage.local.set({ [STORAGE_KEY]:preferences });
+  updateFontLabel(preferences.fontScale);
+  setStatus("Ajustes aplicados.");
+}
+
+async function resetVisual() {
+  const response = await sendToPage({ type:"ACES_VISUAL_RESET" });
+  if (!response?.ok) throw new Error(response?.error || "Não foi possível restaurar.");
+
+  document.getElementById("fontScale").value = "1";
+  ["contrast","grayscale","invert","highlightLinks","reduceMotion"].forEach((id) => {
+    document.getElementById(id).checked = false;
+  });
+
+  const preferences = readPreferences();
+  await chrome.storage.local.set({ [STORAGE_KEY]:preferences });
+  updateFontLabel(1);
+  setStatus("Ajustes restaurados.");
+}
+
+async function toggleToolbar() {
+  const button = document.getElementById("toggleToolbar");
+  const hiding = button.dataset.hidden !== "true";
+  const response = await sendToPage({ type:"ACES_TOGGLE_TOOLBAR", visible:!hiding });
+  if (!response?.ok) throw new Error(response?.error || "Não foi possível alterar a barra.");
+
+  button.dataset.hidden = hiding ? "true" : "false";
+  button.textContent = hiding ? "Mostrar barra" : "Ocultar barra";
+  document.getElementById("toolbarState").textContent = hiding
+    ? "A barra está oculta nesta página."
+    : "A barra está ativa nesta página.";
+}
+
+async function load() {
+  const data = await chrome.storage.local.get(STORAGE_KEY);
+  const preferences = data[STORAGE_KEY];
+  if (!preferences) return;
+
+  document.getElementById("fontScale").value = String(preferences.fontScale ?? 1);
+  document.getElementById("contrast").checked = Boolean(preferences.contrast);
+  document.getElementById("grayscale").checked = Boolean(preferences.grayscale);
+  document.getElementById("invert").checked = Boolean(preferences.invert);
+  document.getElementById("highlightLinks").checked = Boolean(preferences.highlightLinks);
+  document.getElementById("reduceMotion").checked = Boolean(preferences.reduceMotion);
+  updateFontLabel(preferences.fontScale ?? 1);
+}
+
+document.getElementById("toggleToolbar").addEventListener("click", () => toggleToolbar().catch((e) => setStatus(e.message)));
+
+document.getElementById("fontScale").addEventListener("input", () => {
+  updateFontLabel(document.getElementById("fontScale").value);
+  applyVisual().catch((e) => setStatus(e.message));
+});
+
+document.querySelectorAll("[data-font]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const current = Number(document.getElementById("fontScale").value);
+    const next = Math.min(1.8, Math.max(.8, current + Number(button.dataset.font)));
+    document.getElementById("fontScale").value = String(next);
+    updateFontLabel(next);
+    applyVisual().catch((e) => setStatus(e.message));
   });
 });
 
-restoreButton.addEventListener("click", () => {
-  applyPreferences({
-    contrast: false
-  });
+["contrast","grayscale","invert","highlightLinks","reduceMotion"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", () => applyVisual().catch((e) => setStatus(e.message)));
 });
 
-async function initializePopup() {
-  setBusy(true);
+document.getElementById("reset").addEventListener("click", () => resetVisual().catch((e) => setStatus(e.message)));
 
-  try {
-    const data = await chrome.storage.local.get(STORAGE_KEY);
-    const preferences = data[STORAGE_KEY];
-
-    contrastInput.checked = preferences?.contrast === true;
-
-    showStatus(
-      "Escolha uma configuração e clique em Aplicar na página."
-    );
-  } catch (error) {
-    console.error("Erro ao carregar preferências:", error);
-
-    showStatus(
-      "Não foi possível recuperar a preferência salva."
-    );
-  } finally {
-    setBusy(false);
-  }
-}
-
-initializePopup();
+load().catch((error) => console.error("ACES:", error));

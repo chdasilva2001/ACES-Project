@@ -1,15 +1,40 @@
 {
-    "manifest_version": 3, 
-    "name": "ACES", 
-    "version": "0.1.0", 
-    "description": "Recursos de apoio a leitura e personalização da navegação web", 
-    "permissions": [
-        "activeTab",
-        "scripting",
-        "storage"
-    ],
-    "action": {
-        "default_title": "Abrir ACES", 
-        "default_popup": "popup/popup.html"
+  "manifest_version": 3,
+  "name": "ACES - Acessibilidade Web",
+  "version": "0.6.0",
+  "description": "Assistente de acessibilidade Web com barra flutuante, preferências persistentes, leitura sequencial, voz e navegação.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "search"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Abrir ACES",
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "js": [
+        "content/visual.js",
+        "content/reader.js",
+        "content/navigation.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
     }
+  ]
 }
