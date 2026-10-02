@@ -26,6 +26,8 @@
   }
 
   function speak(text, after) {
+    // Durante a fala de retorno, pausamos o reconhecimento para
+    // que o próprio ACES não capture a sua voz como um comando.
     speakingHelp = true;
     try { recognition?.stop(); } catch {}
 
@@ -35,15 +37,17 @@
     utterance.rate = 1;
     utterance.pitch = 1;
 
-    utterance.onend = () => {
+    const finish = () => {
       speakingHelp = false;
       after?.();
+
+      // Regra central: qualquer fala de retorno que termine
+      // deve devolver o microfone ao modo de escuta.
+      if (voiceActive) scheduleRecognition();
     };
 
-    utterance.onerror = () => {
-      speakingHelp = false;
-      after?.();
-    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
 
     speechSynthesis.speak(utterance);
   }
@@ -70,11 +74,67 @@
     const search = command.match(/^(?:pesquisar|buscar)(?: por)? (.+)$/);
     if (search) return { action:"WEB_SEARCH", text:search[1] };
 
-    const buttonNumber = command.match(/^(?:clicar|abrir|selecionar) (?:no )?botao (?:numero )?(\d+)$/);
-    if (buttonNumber) return { action:"CLICK_BUTTON_NUMBER", number:Number(buttonNumber[1]) };
+    const ordinalValues = {
+      primeiro:1, segunda:2, segundo:2, terceiro:3, terceira:3,
+      quarto:4, quarta:4, quinto:5, quinta:5, sexto:6, sexta:6,
+      setimo:7, setima:7, oitavo:8, oitava:8, nono:9, nona:9,
+      decimo:10, decima:10
+    };
 
-    const linkNumber = command.match(/^(?:clicar|abrir|selecionar) (?:no )?link (?:numero )?(\d+)$/);
-    if (linkNumber) return { action:"CLICK_LINK_NUMBER", number:Number(linkNumber[1]) };
+    const ordinalOrNumber = (value) =>
+      /^\d+$/.test(value) ? Number(value) : ordinalValues[value];
+
+    const ordinalPattern = "(?:primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\\d+)";
+
+    const resultNumber = command.match(
+      /^(?:acessar|abrir|clicar|selecionar)(?: no| o)? (primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+) resultado(?: da busca)?$/
+    );
+    if (resultNumber) {
+      return { action:"CLICK_RESULT_NUMBER", number:ordinalOrNumber(resultNumber[1]) };
+    }
+
+    const buttonNumber = command.match(
+      /^(?:clicar|abrir|selecionar|acessar)(?: no| o)? botao (?:numero )?(primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+)$/
+    );
+    if (buttonNumber) return { action:"CLICK_BUTTON_NUMBER", number:ordinalOrNumber(buttonNumber[1]) };
+
+    const linkNumber = command.match(
+      /^(?:clicar|abrir|selecionar|acessar)(?: no| o)? link (?:numero )?(primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+)$/
+    );
+    if (linkNumber) return { action:"CLICK_LINK_NUMBER", number:ordinalOrNumber(linkNumber[1]) };
+
+    const videoNumber = command.match(
+      /^(?:clicar|abrir|selecionar|acessar)(?: no| o)? (?:video|videos) (?:numero )?(primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+)$/
+    );
+    if (videoNumber) return { action:"CLICK_VIDEO_NUMBER", number:ordinalOrNumber(videoNumber[1]) };
+
+    const videoOrdinalBefore = command.match(
+      /^(?:acessar|abrir|clicar|selecionar)(?: no| o)? (primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+) video$/
+    );
+    if (videoOrdinalBefore) {
+      return { action:"CLICK_VIDEO_NUMBER", number:ordinalOrNumber(videoOrdinalBefore[1]) };
+    }
+
+    const videoName = command.match(
+      /^(?:acessar|abrir|clicar|selecionar)(?: o| no)? (?:video|videos)(?: chamado| chamado de| sobre)? (.+)$/
+    );
+    if (videoName) {
+      return { action:"CLICK_VIDEO", name:videoName[1] };
+    }
+
+    const resultName = command.match(
+      /^(?:acessar|abrir|clicar|selecionar)(?: o| no)? resultado(?: da busca)? (.+)$/
+    );
+    if (resultName) {
+      return { action:"CLICK_RESULT", name:resultName[1] };
+    }
+
+    const linkOrdinalBefore = command.match(
+      /^(?:acessar|abrir|clicar|selecionar)(?: no| o)? (primeiro|segundo|terceiro|quarto|quinto|sexto|setimo|oitavo|nono|decimo|\d+) link$/
+    );
+    if (linkOrdinalBefore) {
+      return { action:"CLICK_LINK_NUMBER", number:ordinalOrNumber(linkOrdinalBefore[1]) };
+    }
 
     const clickButton = command.match(/^(?:clicar|clique|abrir|selecionar) (?:no )?botao (.+)$/);
     if (clickButton) return { action:"CLICK_BUTTON", name:clickButton[1] };
@@ -138,6 +198,13 @@
     for (const [pattern, action] of aliases) {
       if (pattern.test(command)) return { action };
     }
+
+    // Comando genérico fica por último para não capturar comandos simples
+    // como "voltar", "avançar" ou "recarregar".
+    const genericTarget = command.match(
+      /^(?:acessar|abrir|ir para|clicar)(?: o| a| no| na| em)? (.+)$/
+    );
+    if (genericTarget) return { action:"OPEN_TARGET", name:genericTarget[1] };
 
     return { action:"UNKNOWN", text:command };
   }
@@ -284,7 +351,6 @@
 
     speak(introduction, () => {
       status("🎙 Voz ativa. Fale uma frase por vez.");
-      scheduleRecognition();
     });
 
     return true;
@@ -381,6 +447,11 @@
         case "CLICK_LINK":
         case "CLICK_BUTTON_NUMBER":
         case "CLICK_LINK_NUMBER":
+        case "CLICK_VIDEO":
+        case "CLICK_VIDEO_NUMBER":
+        case "CLICK_RESULT":
+        case "CLICK_RESULT_NUMBER":
+        case "OPEN_TARGET":
         case "PAGE_SEARCH":
         case "TYPE_TEXT":
         case "CHECK":
@@ -473,10 +544,9 @@
           break;
         }
         case "HELP": {
-          const help = "Você pode dizer: ler página, próximo botão, próximo link, próximo campo, rolar para baixo, pesquisar por matemática, ou digitar seu texto. Fale uma frase por vez.";
+          const help = "Você pode dizer: ler página; próximo botão; próximo link; acessar o segundo link; acessar o vídeo sobre matemática; pesquisar por matemática; rolar para baixo; ou digitar seu texto. Fale uma frase por vez.";
           speak(help, () => {
             status("🎙 Voz ativa. Fale uma frase por vez.");
-            scheduleRecognition();
           });
           break;
         }
@@ -597,6 +667,7 @@
       librasButton.disabled = false;
     }
   });
+
     document.getElementById("aces-voice").addEventListener("click", toggleVoice);
     document.getElementById("aces-read").addEventListener("click", () => statusResult(ACESReader.start(), "Leitura iniciada."));
     document.getElementById("aces-pause").addEventListener("click", () => statusResult(ACESReader.pause(), "Leitura pausada."));
@@ -617,14 +688,14 @@
       status(`Texto em ${Math.round(ACESVisual.getState().fontScale * 100)}%.`);
     });
     document.getElementById("aces-help").addEventListener("click", () => {
-      const help = "Comandos: ler página, próximo botão, próximo link, próximo campo, rolar para baixo, pesquisar por matemática, ou digitar seu texto. Fale uma frase por vez.";
+      const help = "Você pode dizer: ler página; próximo botão; próximo link; acessar o segundo link; acessar o vídeo sobre matemática; pesquisar por matemática; rolar para baixo; ou digitar seu texto. Fale uma frase por vez.";
       speak(help, () => status("🎙 Voz ativa. Fale uma frase por vez."));
     });
     document.getElementById("aces-collapse").addEventListener("click", () => {
       const collapsed = !bar.classList.contains("aces-collapsed");
       bar.classList.toggle("aces-collapsed", collapsed);
       toolbarState.collapsed = collapsed;
-      document.getElementById("aces-collapse").textContent = collapsed ? "+" : "-";
+      document.getElementById("aces-collapse").textContent = collapsed ? "+" : "−";
       document.getElementById("aces-collapse").title = collapsed ? "Expandir barra" : "Recolher barra";
       saveToolbarState();
     });
@@ -682,7 +753,7 @@
 
         const collapse = document.getElementById("aces-collapse");
         if (collapse) {
-          collapse.textContent = toolbarState.collapsed ? "+" : "-";
+          collapse.textContent = toolbarState.collapsed ? "+" : "−";
           collapse.title = toolbarState.collapsed ? "Expandir barra" : "Recolher barra";
         }
       }
